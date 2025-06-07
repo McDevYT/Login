@@ -49,6 +49,8 @@ router.post("/login", async (req, res): Promise<any> => {
     return;
   }
 
+  console.log(username, " ", password);
+
   try {
     if (await bcrypt.compare(password, user.password)) {
       const accessToken = generateAccessToken({ username: user.username });
@@ -76,7 +78,6 @@ router.post("/logout", (req, res) => {
 router.post("/token", (req, res) => {
   const refreshToken = req.body.token;
   console.log(refreshToken);
-  console.log(refreshTokens);
   if (!refreshToken) {
     res.sendStatus(401);
     return;

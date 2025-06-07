@@ -5,9 +5,10 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { Request, Response, NextFunction } from "express";
 import { authenticateToken, authRouter } from "./auth";
+import cors from "cors";
 
 interface AuthenticatedRequest extends Request {
-  user?: { username: string }; // or whatever you put into the token
+  user?: { username: string };
 }
 
 dotenv.config();
@@ -18,6 +19,12 @@ if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
 
 const app = express();
 app.use(express.json());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use("/users", authRouter);
 
 const users: User[] = [];
