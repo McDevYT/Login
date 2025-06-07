@@ -3,6 +3,7 @@ GET http://localhost:3000/users
 ###
 
 GET http://localhost:3000/posts
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkJvYiIsImlhdCI6MTc0OTMxNjQ4NiwiZXhwIjoxNzQ5MzE3Mzg2fQ.iaKisebDWiCCpCKDdl8AgF2hmae2BJ2K43_LYFKqbPY
 
 ###
 
@@ -10,8 +11,8 @@ POST http://localhost:3000/users/register
 Content-Type: application/json
 
 {
-    "username":"Kyle",
-    "password":"password"
+    "username":"Bob",
+    "password":"Bobby"
 }
 
 ###
@@ -20,6 +21,15 @@ POST http://localhost:3000/users/login
 Content-Type: application/json
 
 {
-    "username":"Kyle",
-    "password":"password"
+    "username":"Bob",
+    "password":"Bobby"
+}
+
+###
+
+POST http://localhost:3000/token
+Content-Type: application/json
+
+{
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Ikt5bGUiLCJpYXQiOjE3NDkzMTY0Mzl9.2oalxQ_P2hKK0ppgrwsCb-c1YUjH5y-Q4o8tVgnWy5E"
 }

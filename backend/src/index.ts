@@ -15,6 +15,7 @@ const app = express();
 app.use(express.json());
 
 const users: User[] = [];
+const refreshTokens: string[] = [];
 const posts: { username: string; title: string }[] = [
   {
     username: "Kyle",
@@ -37,7 +38,6 @@ app.get("/posts", authenticateToken, (req: AuthenticatedRequest, res) => {
 app.post("/users/register", async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    console.log(hashedPassword);
     const user: User = {
       username: req.body.username,
       password: hashedPassword,
@@ -66,13 +66,13 @@ app.post("/users/login", async (req, res) => {
 
   try {
     if (await bcrypt.compare(password, user.password)) {
-      const accessToken = jwt.sign(
-        { username: username },
-        process.env.ACCESS_TOKEN_SECRET as string,
-        { expiresIn: "1h" }
+      const accessToken = generateAccessToken({ username: user.username });
+      const refreshToken = jwt.sign(
+        { username: user.username },
+        process.env.REFRESH_TOKEN_SECRET as string
       );
-
-      res.json({ accessToken: accessToken });
+      refreshTokens.push(refreshToken);
+      res.json({ accessToken: accessToken, refreshToken: refreshToken });
     } else {
       res.send("Not allowed");
     }
@@ -80,6 +80,34 @@ app.post("/users/login", async (req, res) => {
     console.log(e);
     res.status(500).send();
   }
+});
+
+app.post("/token", (req, res) => {
+  const refreshToken = req.body.token;
+  console.log(refreshToken);
+  console.log(refreshTokens);
+  if (!refreshToken) {
+    res.sendStatus(401);
+    return;
+  }
+
+  if (!refreshTokens.includes(refreshToken)) {
+    res.sendStatus(403);
+    return;
+  }
+
+  jwt.verify(
+    refreshToken,
+    process.env.REFRESH_TOKEN_SECRET as string,
+    (err: any, user: any) => {
+      if (err) {
+        res.sendStatus(403);
+        return;
+      }
+      const accessToken = generateAccessToken({ username: user.username });
+      res.json({ accessToken: accessToken });
+    }
+  );
 });
 
 function authenticateToken(
@@ -104,6 +132,12 @@ function authenticateToken(
       next();
     }
   );
+}
+
+function generateAccessToken(user: { username: string }): string {
+  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET as string, {
+    expiresIn: "15m",
+  });
 }
 
 app.listen(3000);
