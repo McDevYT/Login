@@ -1,33 +1,26 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Home from "./pages/Home";
 import { useEffect } from "react";
-
-const refreshAccessToken = async () => {
-  const refreshToken = localStorage.getItem("refreshToken");
-
-  const res = await fetch("http://localhost:3000/users/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: refreshToken }),
-  });
-
-  if (res.ok) {
-    const data = await res.json();
-    localStorage.setItem("accessToken", data.accessToken);
-    return data.accessToken;
-  } else {
-    throw new Error("Refresh token invalid");
-  }
-};
+import { getUser, refreshAccessToken } from "./auth";
+import { useDataContext } from "./DataContext";
+import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
+  const { setAccessToken, setUsername } = useDataContext();
+  const navigate = useNavigate();
   useEffect(() => {
     const tryRefresh = async () => {
       try {
-        await refreshAccessToken();
+        const newToken = await refreshAccessToken();
+        setAccessToken(newToken);
+        const username = await getUser(newToken);
+        setUsername(username ?? "");
+        navigate("/home");
       } catch (err) {
         console.warn("User not logged in or refresh token invalid.");
+        navigate("/login");
       }
     };
 
@@ -37,6 +30,14 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route
+        path="/home"
+        element={
+          <ProtectedRoute>
+            <Home />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/*" element={<Login />} />
     </Routes>
   );

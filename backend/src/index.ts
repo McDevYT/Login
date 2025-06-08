@@ -25,7 +25,7 @@ app.use(
     credentials: true,
   })
 );
-app.use("/users", authRouter);
+app.use("/user", authRouter);
 
 const users: User[] = [];
 let refreshTokens: string[] = [];
@@ -44,8 +44,8 @@ app.get("/users", (req, res) => {
   res.json(users);
 });
 
-app.get("/posts", authenticateToken, (req: AuthenticatedRequest, res) => {
-  res.json(posts.filter((post) => post.username === req.user?.username));
+app.get("/getuser", authenticateToken, (req: AuthenticatedRequest, res) => {
+  res.json({ username: req.user?.username });
 });
 
 app.listen(3000, () => {

@@ -1,27 +1,25 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { login } from "../auth";
+import { useDataContext } from "../DataContext";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  const navigate = useNavigate();
+
+  const context = useDataContext();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const response = await fetch("http://localhost:3000/users/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: username, password: password }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      alert("Logged in!");
+    const token = await login(username, password);
+    if (token) {
+      context.setAccessToken(token);
+      context.setUsername(username);
+      navigate("/home");
     } else {
-      alert("Login failed");
+      alert("login failed!");
     }
   };
 
@@ -48,7 +46,7 @@ export default function Login() {
           <label className="block text-sm font-medium">Password:</label>
           <input
             className="mt-1 block w-full border border-gray-300 rounded p-2"
-            type="text"
+            type="password"
             id="lname"
             name="lname"
             value={password}

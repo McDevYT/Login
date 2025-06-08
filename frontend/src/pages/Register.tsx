@@ -1,23 +1,19 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { register } from "../auth";
 
 export default function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  const navigate = useNavigate();
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const response = await fetch("http://localhost:3000/users/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (response.ok) {
-      alert("Registration successful!");
+    if (await register(username, password)) {
+      navigate("/login");
     } else {
-      alert("Registration failed");
+      alert("Register unsuccessful!");
     }
   };
 
