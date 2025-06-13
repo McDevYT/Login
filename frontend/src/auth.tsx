@@ -1,4 +1,4 @@
-import { useDataContext } from "./DataContext";
+import { type UserData } from "../../shared/types";
 
 export const login = async (
   username: string,
@@ -34,6 +34,8 @@ export const register = async (
 export const refreshAccessToken = async (): Promise<string> => {
   const refreshToken = localStorage.getItem("refreshToken");
 
+  if (!refreshToken) throw new Error("No refresh token stored");
+
   const res = await fetch("http://localhost:3000/user/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,8 +50,8 @@ export const refreshAccessToken = async (): Promise<string> => {
   }
 };
 
-export const getUser = async (token: string): Promise<string | null> => {
-  const response = await fetch("http://localhost:3000/getuser", {
+export const getUserData = async (token: string): Promise<UserData | null> => {
+  let response = await fetch("http://localhost:3000/userdata", {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -57,13 +59,35 @@ export const getUser = async (token: string): Promise<string | null> => {
     },
   });
 
+  if (response.status === 403 || !token) {
+    try {
+      const newToken = await refreshAccessToken();
+      localStorage.setItem("accessToken", newToken);
+
+      response = await fetch("http://localhost:3000/userdata", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${newToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (err) {
+      console.error("Token refresh failed:", err);
+      return null;
+    }
+  }
+
   if (!response.ok) {
-    console.error("Request failed:", response.status);
+    const errorText = await response.text();
+    console.error("Login failed:", errorText);
     return null;
   }
 
   const data = await response.json();
-  return data.username;
+  return data as UserData;
 };
 
 export const logout = async () => {

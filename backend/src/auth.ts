@@ -1,9 +1,16 @@
 import express from "express";
 import bcrypt from "bcrypt";
-import { type User } from "./types";
+import { type User } from "../../shared/types";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { Request, Response, NextFunction } from "express";
+import {
+  getUser,
+  insertToken,
+  insertUser,
+  deleteToken,
+  includesToken,
+} from "./userService";
 
 interface AuthenticatedRequest extends Request {
   user?: { username: string };
@@ -15,50 +22,59 @@ if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
   throw new Error("Missing JWT secrets in .env file");
 }
 
-const users: User[] = [];
-let refreshTokens: string[] = [];
-
 const router = express.Router();
 
-router.post("/register", async (req, res) => {
+router.post("/register", async (req, res): Promise<any> => {
+  const username = req.body.username;
+  const password = req.body.password;
+
   try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const existingUser = await getUser(username);
+    if (existingUser) {
+      return res.status(409).send("Username already exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user: User = {
-      username: req.body.username,
-      password: hashedPassword,
+      id: NaN,
+      username,
+      hashedPassword,
+      score: 0,
     };
 
-    users.push(user);
-    res.status(201).send();
-  } catch (e) {
-    console.log(e);
-    res.status(500).send();
+    try {
+      await insertUser(user);
+      res.status(201).send("User registered successfully");
+    } catch (insertErr) {
+      console.error(insertErr);
+      res.status(500).send("Failed to register user");
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error");
   }
 });
 
 router.post("/login", async (req, res): Promise<any> => {
   const username = req.body.username;
-  const password = req.body.password;
+  const password: string = req.body.password;
 
-  const user: User | undefined = users.find(
-    (user) => user.username === username
-  );
-
+  const user: User | null = await getUser(username);
   if (!user) {
     res.status(400).send("Cannot find user");
     return;
   }
 
-  console.log(username, " ", password);
-
   try {
-    if (await bcrypt.compare(password, user.password)) {
-      const accessToken = generateAccessToken({ username: user.username });
+    if (await bcrypt.compare(password, user.hashedPassword)) {
+      const accessToken = generateAccessToken({ userId: user.id });
       const refreshToken = jwt.sign(
-        { username: user.username },
+        { userId: user.id },
         process.env.REFRESH_TOKEN_SECRET as string
       );
-      refreshTokens.push(refreshToken);
+
+      await insertToken(refreshToken, user.id);
       return res.json({ accessToken: accessToken, refreshToken: refreshToken });
     } else {
       return res.status(403).send("Invalid password");
@@ -69,37 +85,40 @@ router.post("/login", async (req, res): Promise<any> => {
   }
 });
 
-router.post("/logout", (req, res) => {
+router.post("/logout", async (req, res) => {
   const token = req.body.token;
-  refreshTokens = refreshTokens.filter((t) => t !== token);
+  await deleteToken(token);
   res.sendStatus(204);
 });
 
-router.post("/token", (req, res) => {
-  const refreshToken = req.body.token;
-  console.log(refreshToken);
-  if (!refreshToken) {
-    res.sendStatus(401);
-    return;
-  }
-
-  if (!refreshTokens.includes(refreshToken)) {
-    res.sendStatus(403);
-    return;
-  }
-
-  jwt.verify(
-    refreshToken,
-    process.env.REFRESH_TOKEN_SECRET as string,
-    (err: any, user: any) => {
-      if (err) {
-        res.sendStatus(403);
-        return;
-      }
-      const accessToken = generateAccessToken({ username: user.username });
-      res.json({ accessToken: accessToken });
+router.post("/token", async (req, res) => {
+  try {
+    const refreshToken = req.body.token;
+    if (!refreshToken) {
+      res.sendStatus(401);
+      return;
     }
-  );
+
+    if (!(await includesToken(refreshToken))) {
+      res.sendStatus(403);
+      return;
+    }
+
+    jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET as string,
+      (err: any, user: any) => {
+        if (err) {
+          res.sendStatus(403);
+          return;
+        }
+        const accessToken = generateAccessToken({ userId: user.id });
+        res.json({ accessToken: accessToken });
+      }
+    );
+  } catch (err) {
+    console.log(err);
+  }
 });
 
 function authenticateToken(
@@ -125,10 +144,10 @@ function authenticateToken(
   );
 }
 
-function generateAccessToken(user: { username: string }): string {
+function generateAccessToken(user: { userId: number }): string {
   return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET as string, {
-    expiresIn: "15m",
+    expiresIn: "15s",
   });
 }
 
-export { router as authRouter, authenticateToken, users };
+export { router as authRouter, authenticateToken };

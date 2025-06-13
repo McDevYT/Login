@@ -10,6 +10,8 @@ interface DataContextType {
   setUsername: React.Dispatch<React.SetStateAction<string>>;
   accessToken: string | null;
   setAccessToken: (token: string | null) => void;
+  score: number;
+  setScore: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -23,10 +25,18 @@ export function DataContextProvider({
 }: DataContextProviderProps): React.ReactElement {
   const [username, setUsername] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string | null>("");
+  const [score, setScore] = useState<number>(0);
 
   return (
     <DataContext.Provider
-      value={{ username, setUsername, accessToken, setAccessToken }}
+      value={{
+        username,
+        setUsername,
+        accessToken,
+        setAccessToken,
+        score,
+        setScore,
+      }}
     >
       {children}
     </DataContext.Provider>
